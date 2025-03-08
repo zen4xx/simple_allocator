@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <stdio.h>
 
@@ -13,6 +14,8 @@ typedef struct Block{
 
 static Block* free_list_head = NULL;
 
+void* page_ptr;
+
 void *allocate_page(){
     return mmap(NULL, ALLOCATOR_PAGE_SIZE, PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);  
 }
@@ -23,12 +26,12 @@ void add_to_free_list(Block* block){
         block->prev = block->next = NULL;
     }
     else{
-        block->next = (struct Block*)free_list_head;
+        block->next = free_list_head;
         block->prev = NULL;
-        free_list_head->prev = (struct Block*)block;
+        free_list_head->prev = block;
         free_list_head = block;
     }
-}
+} 
 
 void remove_from_free_list(Block* block){
     if(block->prev) block->prev->next = block->next;
@@ -49,10 +52,14 @@ Block* find_free_block(size_t size){
 }
 
 void init_alloc(){
-    Block* inital_block = (Block*)allocate_page();
+    page_ptr = allocate_page();
+    Block* inital_block = (Block*)page_ptr;
     inital_block->size = ALLOCATOR_PAGE_SIZE;
     inital_block->is_free = 1;
+}
 
+void destroy_alloc(){
+    munmap(page_ptr, ALLOCATOR_PAGE_SIZE);
 }
 
 void* allocate(size_t size){
@@ -101,6 +108,6 @@ int main(){
     *x = 5;
     printf("%d\n", *x);
     release(x);
-
+    destroy_alloc();
     return 0;
 }
